@@ -1,0 +1,70 @@
+version: '3'
+
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-python
+
+  features:
+    environment:
+      - PYTHONUNBUFFERED=1
+    build: .  
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    command: python features.py
+    networks:
+      - app-python
+    volumes:
+      - ./logs:/app/logs
+
+  metrics:
+    environment:
+      - PYTHONUNBUFFERED=1
+    build: .  
+    depends_on:
+      - features
+    command: python metrics.py
+    networks:
+      - app-python
+    volumes:
+      - ./logs:/app/logs
+
+  model:
+    environment:
+      - PYTHONUNBUFFERED=1
+    build: .  
+    depends_on:
+      - features
+    command: python model.py
+    networks:
+      - app-python
+    volumes:
+      - ./logs:/app/logs
+  
+  plot:
+    environment:
+      - PYTHONUNBUFFERED=1
+    build: .  
+    depends_on:
+      - metrics
+    command: python plot.py
+    networks:
+      - app-python
+    volumes:
+      - ./logs:/app/logs
+
+networks:
+  app-python:
