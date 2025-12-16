@@ -38,6 +38,8 @@ class MQ:
             self.__channel.queue_declare(queue=q, durable=True)
         except Exception as e:
             print(f"Error create channel {e}")
+            if self.__channel and self.__channel.is_open:
+                self.__channel.close()
             if connection and connection.is_open:
                 connection.close()
 
@@ -50,6 +52,8 @@ class MQ:
             self.__channel.basic_consume(queue=q, on_message_callback=cb, auto_ack=True)
         except Exception as e:
             print(f"Error create channel {e}")
+            if self.__channel and self.__channel.is_open:
+                self.__channel.close()
             if connection and connection.is_open:
                 connection.close()
 
@@ -64,19 +68,32 @@ class MQ:
                                 body=json.dumps(msg)
                             )
         except Exception as e:
-            print(f"Error create channel {e}")
+            print(f"Error send message {e}")
+            if self.__channel and self.__channel.is_open:
+                self.__channel.close()
             if connection and connection.is_open:
                 connection.close()
 
     def consume(self):
         try:
-            self.__channel.start_consuming()
+            if self.__channel is None or self.__channel.is_closed:
+                connection = self.__get_connection()
+                self.__channel = connection.channel()
+
+            if self.__channel and self.__channel.is_open:
+                print('Consuming starts')
+                self.__channel.start_consuming()
+                
         except KeyboardInterrupt:
             print('Consuming stoped')
         except Exception:
             raise Exception('Error consuming')
         finally:
             self.__channel.stop_consuming()
+            if self.__channel and self.__channel.is_open:
+                self.__channel.close()
+            if connection and connection.is_open:
+                connection.close()
 
 
 class FeatureMQ(MQ):
